@@ -5,8 +5,17 @@ export type Collectible = {
   slug: string;
   name: string;
   category: string;
+  setLabel?: string;
   cycle: number;
   payout: number;
+  order?: number;
+  notes?: string;
+  video?: {
+    yt_id: string;
+    yt_user?: string;
+    start?: string;
+    end?: string;
+  };
   status: CollectibleStatus;
   coords: { x: number; y: number };
   source: {

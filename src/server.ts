@@ -3,7 +3,7 @@ import express from "express";
 import { z } from "zod";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { collectibles, ensureIndexes } from "./db.js";
+import { collectibles, ensureIndexes, isDemoMode } from "./db.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
@@ -23,6 +23,62 @@ app.get("/api/categories", async (_req, res) => {
   const categories = await collectibles.distinct("category", { game: "gta5", status: { $ne: "removed" } });
   categories.sort((a, b) => a.localeCompare(b));
   res.json({ categories });
+});
+
+app.get("/api/categories/stats", async (_req, res) => {
+  const rows = await collectibles
+    .find(
+      { game: "gta5", status: { $ne: "removed" } },
+      { projection: { _id: 0, category: 1, setLabel: 1 } },
+    )
+    .toArray();
+
+  const map = new Map<string, { category: string; setLabel: string; count: number }>();
+  for (const row of rows) {
+    const key = row.category;
+    const current = map.get(key);
+    if (current) {
+      current.count += 1;
+      continue;
+    }
+    map.set(key, {
+      category: row.category,
+      setLabel: row.setLabel ?? row.category,
+      count: 1,
+    });
+  }
+
+  const categories = [...map.values()].sort((a, b) => a.setLabel.localeCompare(b.setLabel));
+  res.json({ categories });
+});
+
+app.get("/api/map/config", (_req, res) => {
+  const road =
+    process.env.MAP_TILES_ROAD ?? "https://cdn.jsdelivr.net/gh/CreepPork/GTAV-Maps@master/road/{z}-{x}_{y}.png";
+  const atlas =
+    process.env.MAP_TILES_ATLAS ?? "https://cdn.jsdelivr.net/gh/CreepPork/GTAV-Maps@master/atlas/{z}-{x}_{y}.png";
+  const satellite =
+    process.env.MAP_TILES_SATELLITE ??
+    "https://cdn.jsdelivr.net/gh/CreepPork/GTAV-Maps@master/satellite/{z}-{x}_{y}.png";
+
+  res.json({
+    game: "gta5",
+    styles: {
+      road: { label: "Road", url: road },
+      atlas: { label: "Atlas", url: atlas },
+      satellite: { label: "Satellite", url: satellite },
+    },
+    defaultStyle: "road",
+    minZoom: 4,
+    maxZoom: 7,
+    initialView: { lat: 66, lng: -125, zoom: 5 },
+    maxBounds: {
+      south: 50,
+      west: -165,
+      north: 86,
+      east: -80,
+    },
+  });
 });
 
 const querySchema = z.object({
@@ -56,6 +112,10 @@ app.get("/api/collectibles", async (req, res) => {
         category: 1,
         cycle: 1,
         payout: 1,
+        order: 1,
+        setLabel: 1,
+        notes: 1,
+        video: 1,
         coords: 1,
         status: 1,
         updatedAt: 1,
@@ -67,7 +127,7 @@ app.get("/api/collectibles", async (req, res) => {
   res.json({ total: rows.length, items: rows });
 });
 
-app.get("*", (_req, res) => {
+app.get("/{*path}", (_req, res) => {
   res.sendFile(path.join(publicDir, "index.html"));
 });
 
@@ -75,4 +135,7 @@ await ensureIndexes();
 
 app.listen(port, () => {
   console.log(`GTAV Collectors Map running on http://localhost:${port}`);
+  if (isDemoMode) {
+    console.log("Running in demo mode (DB_STRING not set).");
+  }
 });

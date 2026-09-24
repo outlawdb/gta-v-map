@@ -1,67 +1,67 @@
 import "dotenv/config";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { collectibles, ensureIndexes } from "../src/db.js";
 import type { Collectible } from "../src/types.js";
 
-const seedRows: Collectible[] = [
-  {
-    game: "gta5",
-    slug: "signal-jammer-ls-river-01",
-    name: "Signal Jammer — LS River",
-    category: "signal_jammer",
-    cycle: 1,
-    payout: 2000,
-    status: "available",
-    coords: { x: -118.244, y: 34.053 },
-    source: { kind: "community", ref: "bootstrap" },
-    updatedAt: new Date(),
-  },
-  {
-    game: "gta5",
-    slug: "playing-card-casino-roof-01",
-    name: "Playing Card — Casino Roof",
-    category: "playing_card",
-    cycle: 2,
-    payout: 250,
-    status: "available",
-    coords: { x: -118.384, y: 34.102 },
-    source: { kind: "community", ref: "bootstrap" },
-    updatedAt: new Date(),
-  },
-  {
-    game: "gta5",
-    slug: "action-figure-vespucci-pier-01",
-    name: "Action Figure — Vespucci Pier",
-    category: "action_figure",
-    cycle: 1,
-    payout: 1000,
-    status: "available",
-    coords: { x: -118.496, y: 33.986 },
-    source: { kind: "community", ref: "bootstrap" },
-    updatedAt: new Date(),
-  },
-  {
-    game: "gta5",
-    slug: "movie-prop-richman-01",
-    name: "Movie Prop — Richman Estate",
-    category: "movie_prop",
-    cycle: 3,
-    payout: 1500,
-    status: "limited",
-    coords: { x: -118.412, y: 34.078 },
-    source: { kind: "community", ref: "bootstrap" },
-    updatedAt: new Date(),
-  },
-];
+type RawLocation = {
+  id: number;
+  type: string;
+  title: string;
+  lat: number;
+  lng: number;
+  notes?: string;
+  order?: number;
+  video?: { yt_id: string; yt_user?: string; start?: string; end?: string };
+};
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function loadRows(): Collectible[] {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const raw = readFileSync(path.join(root, "data", "gtav-locations.json"), "utf8");
+  const rows = JSON.parse(raw) as RawLocation[];
+
+  const used = new Set<string>();
+  return rows.map((row) => {
+    const baseSlug = slugify(row.title || `${row.type}-${row.id}`);
+    let slug = baseSlug;
+    if (used.has(slug)) slug = `${slug}-${row.id}`;
+    used.add(slug);
+
+    return {
+      game: "gta5",
+      slug,
+      name: row.title,
+      category: slugify(row.type).replaceAll("-", "_"),
+      setLabel: row.type,
+      cycle: 1,
+      payout: 0,
+      order: row.order,
+      notes: row.notes,
+      video: row.video,
+      status: "available",
+      coords: { x: Number(row.lng), y: Number(row.lat) },
+      source: { kind: "community", ref: "github.com/danharper/GTAV (WTFPL)" },
+      updatedAt: new Date(),
+    } satisfies Collectible;
+  });
+}
 
 async function main(): Promise<void> {
+  const seedRows = loadRows();
   await ensureIndexes();
 
   for (const row of seedRows) {
-    await collectibles.updateOne(
-      { game: row.game, slug: row.slug },
-      { $set: row },
-      { upsert: true },
-    );
+    await collectibles.updateOne({ game: row.game, slug: row.slug }, { $set: row }, { upsert: true });
   }
 
   console.log(`Seeded ${seedRows.length} GTA V collectibles`);

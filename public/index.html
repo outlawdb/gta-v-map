@@ -8,12 +8,9 @@
       name="description"
       content="Interactive GTA V collectors map with OutlawDB-backed data feeds."
     />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
+    <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="/vendor/leaflet-markercluster/MarkerCluster.css" />
+    <link rel="stylesheet" href="/vendor/leaflet-markercluster/MarkerCluster.Default.css" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -21,6 +18,7 @@
       <h1>GTAV Collectors Map</h1>
       <p class="subtitle">RDR2CollectorsMap-style workflow, GTA V data</p>
 
+      <div class="sidebar-top">
       <div class="controls">
         <label>
           Search
@@ -28,10 +26,8 @@
         </label>
 
         <label>
-          Category
-          <select id="category">
-            <option value="">All categories</option>
-          </select>
+          Map style
+          <select id="style"></select>
         </label>
 
         <label>
@@ -51,17 +47,34 @@
         <button id="refresh">Refresh</button>
       </div>
 
+      <div class="sidebar-actions">
+        <button id="show-all-cats">Show all</button>
+        <button id="hide-all-cats">Hide all</button>
+      </div>
+
+      <div class="sidebar-actions">
+        <button id="fit-visible">Fit visible</button>
+        <button id="reset-filters">Reset filters</button>
+      </div>
+
       <div id="summary" class="summary">Loading…</div>
+
+      <div class="panel-header">
+        <h2>Categories</h2>
+        <button id="toggle-cats" class="ghost">Collapse</button>
+      </div>
+      <div id="category-panel" class="category-panel"></div>
+      </div>
+
+      <div class="list-wrap">
       <ul id="list" class="list"></ul>
+      </div>
     </aside>
 
     <main id="map"></main>
 
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
+    <script src="/vendor/leaflet/leaflet.js"></script>
+    <script src="/vendor/leaflet-markercluster/leaflet.markercluster.js"></script>
     <script type="module" src="/app.js"></script>
   </body>
 </html>
